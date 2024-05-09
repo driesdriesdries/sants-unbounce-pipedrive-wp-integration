@@ -35,6 +35,14 @@ function sants_webhook_settings_page() {
                     <td><input type="text" name="stage_id" value="<?php echo esc_attr(get_option('stage_id')); ?>" /></td>
                 </tr>
                 <tr valign="top">
+                    <th scope="row">Owner ID</th>
+                    <td><input type="text" name="owner_id" value="<?php echo esc_attr(get_option('owner_id')); ?>" /></td>
+                </tr>
+                <tr valign="top">
+                    <th scope="row">Organization ID</th>
+                    <td><input type="text" name="organization_id" value="<?php echo esc_attr(get_option('organization_id')); ?>" /></td>
+                </tr>
+                <tr valign="top">
                     <th scope="row">Secret Token</th>
                     <td><input type="text" name="secret_token" value="<?php echo esc_attr(get_option('secret_token')); ?>" /></td>
                 </tr>
@@ -51,6 +59,8 @@ function sants_webhook_settings_init() {
     register_setting('sants-webhook-settings-group', 'pipedrive_api_key');
     register_setting('sants-webhook-settings-group', 'pipeline_id');
     register_setting('sants-webhook-settings-group', 'stage_id');
+    register_setting('sants-webhook-settings-group', 'owner_id');
+    register_setting('sants-webhook-settings-group', 'organization_id');
     register_setting('sants-webhook-settings-group', 'secret_token');
 }
 
@@ -63,10 +73,21 @@ add_action('rest_api_init', function () {
 });
 
 function sants_handle_webhook($request) {
-    // Retrieve Pipedrive credentials from settings
+    // Retrieve Pipedrive credentials and settings from options
     $pipedrive_api_key = get_option('pipedrive_api_key');
-    $pipeline_id = get_option('pipeline_id');
-    $stage_id = get_option('stage_id');
+    $owner_id = (int)get_option('owner_id');
+    $organization_id = (int)get_option('organization_id');
+
+    // Validate `owner_id`
+    if ($owner_id <= 0) {
+        return new WP_REST_Response(array(
+            'success' => false,
+            'message' => 'Invalid owner_id specified. Please provide a valid positive number.'
+        ), 400);
+    }
+
+    // Ensure `organization_id` is valid or set to null
+    $organization_id = $organization_id > 0 ? $organization_id : null;
 
     // Get request parameters
     $parameters = $request->get_json_params();
@@ -93,15 +114,64 @@ function sants_handle_webhook($request) {
     $callback = isset($parameters['callback']) ? $parameters['callback'] : 'Not provided';
     $productOfInterest = isset($parameters['product_of_interest']) ? $parameters['product_of_interest'] : 'Not provided';
 
+    // First, find or create a person in Pipedrive
+    $person_data = [
+        "name" => $firstName . " " . $lastName,
+        "email" => $email
+    ];
+
+    // Search for an existing person by email
+    $search_url = 'https://api.pipedrive.com/v1/persons/search?term=' . urlencode($email) . '&api_token=' . $pipedrive_api_key;
+    $search_response = file_get_contents($search_url);
+    $search_result = json_decode($search_response, true);
+
+    $person_id = null;
+    if ($search_result['success'] && !empty($search_result['data']['items'])) {
+        $person_id = $search_result['data']['items'][0]['item']['id'];
+    } else {
+        // Create a new person if not found
+        $person_url = 'https://api.pipedrive.com/v1/persons?api_token=' . $pipedrive_api_key;
+
+        $person_headers = [
+            'Content-Type: application/json',
+            'Accept: application/json',
+        ];
+
+        $ch = curl_init($person_url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $person_headers);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($person_data));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+        $person_response = curl_exec($ch);
+        $person_httpStatusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if (WP_DEBUG_LOG) {
+            error_log('Person creation response: ' . $person_response);
+            error_log('HTTP Status Code (Person): ' . $person_httpStatusCode);
+        }
+
+        $person_result = json_decode($person_response, true);
+        if ($person_result['success']) {
+            $person_id = $person_result['data']['id'];
+        } else {
+            return new WP_REST_Response(array(
+                'success' => false,
+                'message' => 'Unable to create or find a person in Pipedrive.'
+            ), 400);
+        }
+    }
+
     // Prepare Pipedrive request data
     $lead_data = [
         "title" => "Lead: " . $firstName . " " . $lastName,
-        "pipeline_id" => $pipeline_id,
-        "stage_id" => $stage_id,
-        "person_id" => [
-            "name" => $firstName . " " . $lastName,
-            "email" => $email
-        ],
+        "owner_id" => $owner_id,
+        "label_ids" => [],
+        "organization_id" => $organization_id,
+        "visible_to" => "3",
+        "was_seen" => false,
+        "person_id" => $person_id,
         "value" => null,
         "source_name" => "Unbounce"
     ];
@@ -114,8 +184,13 @@ function sants_handle_webhook($request) {
     // Send a POST request to Pipedrive API
     $url = 'https://api.pipedrive.com/v1/leads?api_token=' . $pipedrive_api_key;
 
+    $headers = [
+        'Content-Type: application/json',
+        'Accept: application/json',
+    ];
+
     $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($lead_data));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
