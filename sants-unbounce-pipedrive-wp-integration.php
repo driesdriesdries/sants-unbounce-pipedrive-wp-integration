@@ -3,7 +3,7 @@
  * Plugin Name: SANTS Unbounce to Pipedrive Integration
  * Plugin URI: https://www.sants.co.za
  * Description: Handles webhooks from Unbounce for integration with Pipedrive and sends confirmation emails.
- * Version: 1.1
+ * Version: 1.3
  * Author: Andries Bester
  * Author URI: https://www.sants.co.za
  */
@@ -27,14 +27,6 @@ function sants_webhook_settings_page() {
                     <td><input type="text" name="pipedrive_api_key" value="<?php echo esc_attr(get_option('pipedrive_api_key')); ?>" /></td>
                 </tr>
                 <tr valign="top">
-                    <th scope="row">Pipeline ID</th>
-                    <td><input type="text" name="pipeline_id" value="<?php echo esc_attr(get_option('pipeline_id')); ?>" /></td>
-                </tr>
-                <tr valign="top">
-                    <th scope="row">Stage ID</th>
-                    <td><input type="text" name="stage_id" value="<?php echo esc_attr(get_option('stage_id')); ?>" /></td>
-                </tr>
-                <tr valign="top">
                     <th scope="row">Owner ID</th>
                     <td><input type="text" name="owner_id" value="<?php echo esc_attr(get_option('owner_id')); ?>" /></td>
                 </tr>
@@ -43,7 +35,7 @@ function sants_webhook_settings_page() {
                     <td><input type="text" name="organization_id" value="<?php echo esc_attr(get_option('organization_id')); ?>" /></td>
                 </tr>
                 <tr valign="top">
-                    <th scope="row">Secret Token</th>
+                    <th scope="row">Unbounce Secret Token</th>
                     <td><input type="text" name="secret_token" value="<?php echo esc_attr(get_option('secret_token')); ?>" /></td>
                 </tr>
             </table>
@@ -57,8 +49,6 @@ add_action('admin_init', 'sants_webhook_settings_init');
 
 function sants_webhook_settings_init() {
     register_setting('sants-webhook-settings-group', 'pipedrive_api_key');
-    register_setting('sants-webhook-settings-group', 'pipeline_id');
-    register_setting('sants-webhook-settings-group', 'stage_id');
     register_setting('sants-webhook-settings-group', 'owner_id');
     register_setting('sants-webhook-settings-group', 'organization_id');
     register_setting('sants-webhook-settings-group', 'secret_token');
@@ -167,13 +157,10 @@ function sants_handle_webhook($request) {
     $lead_data = [
         "title" => "Lead: " . $firstName . " " . $lastName,
         "owner_id" => $owner_id,
-        "label_ids" => [],
         "organization_id" => $organization_id,
-        "visible_to" => "3",
-        "was_seen" => false,
         "person_id" => $person_id,
-        "value" => null,
-        "source_name" => "Unbounce"
+        "visible_to" => "3",
+        "was_seen" => false
     ];
 
     // Logging the data payload (optional)
