@@ -90,6 +90,9 @@ function sants_handle_webhook($request) {
         $decoded_data = json_decode($parameters['data_json'], true);
         $parameters = array_merge($parameters, $decoded_data);
     }
+    
+    // Extract fields from parameters
+    $pageIdentifier = isset($parameters['page_identifier']) ? $parameters['page_identifier'] : 'Not Provided';
 
     // Logging (optional)
     if (WP_DEBUG_LOG) {
@@ -160,7 +163,8 @@ function sants_handle_webhook($request) {
         "organization_id" => $organization_id,
         "person_id" => $person_id,
         "visible_to" => "3",
-        "was_seen" => false
+        "was_seen" => false,
+        "label_ids" => ["f10327c0-1126-11ef-a486-dfc9bb3755ce"] // Add this line to include the label ID
     ];
 
     // Logging the data payload (optional)
@@ -212,6 +216,7 @@ function sants_handle_webhook($request) {
     $body .= "<p><strong>Time Submitted:</strong> " . (isset($parameters['time_submitted']) ? $parameters['time_submitted'] : 'Not Provided') . "</p>";
     $body .= "<h3>Pipedrive Response:</h3><pre>" . $response . "</pre>";
     $body .= "<p><strong>HTTP Status Code:</strong> " . $httpStatusCode . "</p>";
+    $body .= "<p><strong>Page Identifier:</strong> " . $pageIdentifier . "</p>"; // Add this line to include the Page Identifier
     $body .= "</body></html>";
 
     // Set content-type header for HTML email
