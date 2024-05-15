@@ -3,7 +3,7 @@
  * Plugin Name: SANTS Unbounce to Pipedrive Integration
  * Plugin URI: https://www.sants.co.za
  * Description: Handles webhooks from Unbounce for integration with Pipedrive and sends confirmation emails.
- * Version: 1.3
+ * Version: 1.4
  * Author: Andries Bester
  * Author URI: https://www.sants.co.za
  */
@@ -156,6 +156,26 @@ function sants_handle_webhook($request) {
         }
     }
 
+    // Page Identifier to Label ID Mapping
+    $pageIdentifierToLabelId = [
+        'general_enquiry' => 'edd651d0-1126-11ef-955b-fd867b21d92f',
+        'website' => 'e740ae60-1126-11ef-8a9d-83547025c22e',
+        'diploma' => 'f10327c0-1126-11ef-a486-dfc9bb3755ce',
+        'bed_foundation' => 'f695da20-1126-11ef-955b-fd867b21d92f',
+        'bed_intermediate' => 'fb6d2bc0-1126-11ef-9118-cd7c8910ef98',
+        'lasium' => '07844380-1127-11ef-955b-fd867b21d92f',
+        'beurs' => '0c1ae2a0-1127-11ef-955b-fd867b21d92f'
+    ];
+
+    $labelId = isset($pageIdentifierToLabelId[$pageIdentifier]) ? $pageIdentifierToLabelId[$pageIdentifier] : null;
+
+    if (is_null($labelId)) {
+        return new WP_REST_Response(array(
+            'success' => false,
+            'message' => 'Invalid page identifier. Unable to find corresponding label ID.'
+        ), 400);
+    }
+
     // Prepare Pipedrive request data
     $lead_data = [
         "title" => "Lead: " . $firstName . " " . $lastName,
@@ -164,7 +184,7 @@ function sants_handle_webhook($request) {
         "person_id" => $person_id,
         "visible_to" => "3",
         "was_seen" => false,
-        "label_ids" => ["f10327c0-1126-11ef-a486-dfc9bb3755ce"] // Add this line to include the label ID
+        "label_ids" => [$labelId]
     ];
 
     // Logging the data payload (optional)
@@ -216,7 +236,7 @@ function sants_handle_webhook($request) {
     $body .= "<p><strong>Time Submitted:</strong> " . (isset($parameters['time_submitted']) ? $parameters['time_submitted'] : 'Not Provided') . "</p>";
     $body .= "<h3>Pipedrive Response:</h3><pre>" . $response . "</pre>";
     $body .= "<p><strong>HTTP Status Code:</strong> " . $httpStatusCode . "</p>";
-    $body .= "<p><strong>Page Identifier:</strong> " . $pageIdentifier . "</p>"; // Add this line to include the Page Identifier
+    $body .= "<p><strong>Page Identifier:</strong> " . $pageIdentifier . "</p>";
     $body .= "</body></html>";
 
     // Set content-type header for HTML email
