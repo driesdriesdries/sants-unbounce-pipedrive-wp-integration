@@ -100,7 +100,7 @@ function sants_handle_webhook($request) {
     }
 
     // Extract data fields from the webhook
-    $email = !empty($parameters['email']) ? $parameters['email'] : '';
+    $email = !empty($parameters['email']) ? $email = $parameters['email'] : '';
     $firstName = !empty($parameters['first_name']) ? $parameters['first_name'] : '';
     $lastName = !empty($parameters['last_name']) ? $parameters['last_name'] : '';
     $highestQualification = isset($parameters['highest_qualification']) ? $parameters['highest_qualification'] : 'Not provided';
@@ -167,12 +167,63 @@ function sants_handle_webhook($request) {
         'beurs' => '0c1ae2a0-1127-11ef-955b-fd867b21d92f'
     ];
 
-    $labelId = isset($pageIdentifierToLabelId[$pageIdentifier]) ? $pageIdentifierToLabelId[$pageIdentifier] : null;
+    $pageIdentifierToLabelName = [
+        'general_enquiry' => 'General Enquiry',
+        'website' => 'Website',
+        'diploma' => 'Diploma',
+        'bed_foundation' => 'BED Foundation',
+        'bed_intermediate' => 'BED Intermediate',
+        'lasium' => 'Lasium',
+        'beurs' => 'Beurs'
+    ];
 
-    if (is_null($labelId)) {
+    // Callback to Label ID Mapping
+    $callbackToLabelId = [
+        'Yes' => 'a899a460-1c1f-11ef-b1d7-1df444fea3be',
+        'No' => 'ae375340-1c1f-11ef-8531-1b2d16bd1c16'
+    ];
+
+    $callbackToLabelName = [
+        'Yes' => 'Subscribed',
+        'No' => 'Unsubscribed'
+    ];
+
+    // Highest Qualification to Label ID Mapping
+    $qualificationToLabelId = [
+        'High School' => '858ae150-1c1f-11ef-8531-1b2d16bd1c16',
+        'Bachelors Degree' => '8c82c900-1c1f-11ef-b20f-af912007a562',
+        'Honors Degree' => '91b755d0-1c1f-11ef-8531-1b2d16bd1c16',
+        'Masters Degree' => '95b81d90-1c1f-11ef-b75b-87a048a13525'
+    ];
+
+    $qualificationToLabelName = [
+        'High School' => 'High School',
+        'Bachelors Degree' => 'Bachelors Degree',
+        'Honors Degree' => 'Honors Degree',
+        'Masters Degree' => 'Masters Degree'
+    ];
+
+    // Collect Label IDs and Names
+    $labelIds = [];
+    $labelNames = [];
+
+    if (isset($pageIdentifierToLabelId[$pageIdentifier])) {
+        $labelIds[] = $pageIdentifierToLabelId[$pageIdentifier];
+        $labelNames[] = $pageIdentifierToLabelName[$pageIdentifier];
+    }
+    if (isset($callbackToLabelId[$callback])) {
+        $labelIds[] = $callbackToLabelId[$callback];
+        $labelNames[] = $callbackToLabelName[$callback];
+    }
+    if (isset($qualificationToLabelId[$highestQualification])) {
+        $labelIds[] = $qualificationToLabelId[$highestQualification];
+        $labelNames[] = $qualificationToLabelName[$highestQualification];
+    }
+
+    if (empty($labelIds)) {
         return new WP_REST_Response(array(
             'success' => false,
-            'message' => 'Invalid page identifier. Unable to find corresponding label ID.'
+            'message' => 'Invalid page identifier, callback, or highest qualification. Unable to find corresponding label IDs.'
         ), 400);
     }
 
@@ -184,7 +235,7 @@ function sants_handle_webhook($request) {
         "person_id" => $person_id,
         "visible_to" => "3",
         "was_seen" => false,
-        "label_ids" => [$labelId]
+        "label_ids" => $labelIds // Use GUIDs for label_ids
     ];
 
     // Logging the data payload (optional)
@@ -208,7 +259,41 @@ function sants_handle_webhook($request) {
 
     $response = curl_exec($ch);
     $httpStatusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+
+    if ($httpStatusCode == 201) {
+        $response_data = json_decode($response, true);
+        $lead_id = $response_data['data']['id'];
+
+        // Add a note with the label names
+        $note_content = "Labels: " . implode(", ", $labelNames);
+        $note_data = [
+            "content" => $note_content,
+            "lead_id" => $lead_id
+        ];
+
+        $note_url = 'https://api.pipedrive.com/v1/notes?api_token=' . $pipedrive_api_key;
+
+        $ch = curl_init($note_url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($note_data));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+        $note_response = curl_exec($ch);
+        $note_httpStatusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if (WP_DEBUG_LOG) {
+            error_log('Note response: ' . $note_response);
+            error_log('HTTP Status Code (Note): ' . $note_httpStatusCode);
+        }
+    } else {
+        curl_close($ch);
+        return new WP_REST_Response(array(
+            'success' => false,
+            'message' => 'Failed to create lead in Pipedrive.'
+        ), 400);
+    }
 
     if (WP_DEBUG_LOG) {
         error_log('Pipedrive response: ' . $response);
@@ -265,3 +350,4 @@ function sants_webhooks_permissions_check($request) {
     }
     return true;
 }
+?>
