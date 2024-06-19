@@ -90,7 +90,7 @@ function sants_handle_webhook($request) {
         $decoded_data = json_decode($parameters['data_json'], true);
         $parameters = array_merge($parameters, $decoded_data);
     }
-    
+
     // Extract fields from parameters
     $pageIdentifier = isset($parameters['page_identifier']) ? $parameters['page_identifier'] : 'Not Provided';
 
@@ -158,66 +158,40 @@ function sants_handle_webhook($request) {
 
     // Page Identifier to Label ID Mapping
     $pageIdentifierToLabelId = [
-        'general_enquiry' => 'edd651d0-1126-11ef-955b-fd867b21d92f',
-        'website' => 'e740ae60-1126-11ef-8a9d-83547025c22e',
-        'diploma' => 'f10327c0-1126-11ef-a486-dfc9bb3755ce',
-        'bed_foundation' => 'f695da20-1126-11ef-955b-fd867b21d92f',
-        'bed_intermediate' => 'fb6d2bc0-1126-11ef-9118-cd7c8910ef98',
-        'lasium' => '07844380-1127-11ef-955b-fd867b21d92f',
-        'beurs' => '0c1ae2a0-1127-11ef-955b-fd867b21d92f'
-    ];
-
-    $pageIdentifierToLabelName = [
-        'general_enquiry' => 'General Enquiry',
-        'website' => 'Website',
-        'diploma' => 'Diploma',
-        'bed_foundation' => 'BED Foundation',
-        'bed_intermediate' => 'BED Intermediate',
-        'lasium' => 'Lasium',
-        'beurs' => 'Beurs'
+        'general_enquiry' => '40',
+        'website' => '39',
+        'diploma' => '41',
+        'bed_foundation' => '42',
+        'bed_intermediate' => '43',
+        'lasium' => '44',
+        'beurs' => '45',
     ];
 
     // Callback to Label ID Mapping
     $callbackToLabelId = [
-        'Yes' => 'a899a460-1c1f-11ef-b1d7-1df444fea3be',
-        'No' => 'ae375340-1c1f-11ef-8531-1b2d16bd1c16'
-    ];
-
-    $callbackToLabelName = [
-        'Yes' => 'Subscribed',
-        'No' => 'Unsubscribed'
+        'Yes' => '79',
+        'No' => '80',
     ];
 
     // Highest Qualification to Label ID Mapping
     $qualificationToLabelId = [
-        'High School' => '858ae150-1c1f-11ef-8531-1b2d16bd1c16',
-        'Bachelors Degree' => '8c82c900-1c1f-11ef-b20f-af912007a562',
-        'Honors Degree' => '91b755d0-1c1f-11ef-8531-1b2d16bd1c16',
-        'Masters Degree' => '95b81d90-1c1f-11ef-b75b-87a048a13525'
+        'High School' => '75',
+        'Bachelors Degree' => '76',
+        'Honors Degree' => '77',
+        'Masters Degree' => '78',
     ];
 
-    $qualificationToLabelName = [
-        'High School' => 'High School',
-        'Bachelors Degree' => 'Bachelors Degree',
-        'Honors Degree' => 'Honors Degree',
-        'Masters Degree' => 'Masters Degree'
-    ];
-
-    // Collect Label IDs and Names
+    // Collect Label IDs
     $labelIds = [];
-    $labelNames = [];
 
     if (isset($pageIdentifierToLabelId[$pageIdentifier])) {
         $labelIds[] = $pageIdentifierToLabelId[$pageIdentifier];
-        $labelNames[] = $pageIdentifierToLabelName[$pageIdentifier];
     }
     if (isset($callbackToLabelId[$callback])) {
         $labelIds[] = $callbackToLabelId[$callback];
-        $labelNames[] = $callbackToLabelName[$callback];
     }
     if (isset($qualificationToLabelId[$highestQualification])) {
         $labelIds[] = $qualificationToLabelId[$highestQualification];
-        $labelNames[] = $qualificationToLabelName[$highestQualification];
     }
 
     if (empty($labelIds)) {
@@ -227,71 +201,49 @@ function sants_handle_webhook($request) {
         ), 400);
     }
 
-    // Prepare Pipedrive request data
-    $lead_data = [
-        "title" => "Lead: " . $firstName . " " . $lastName,
-        "owner_id" => $owner_id,
-        "organization_id" => $organization_id,
+    // Prepare Pipedrive request data for creating a deal
+    $deal_data = [
+        "title" => "Deal: " . $firstName . " " . $lastName,
+        "user_id" => $owner_id,
+        "org_id" => $organization_id,
         "person_id" => $person_id,
         "visible_to" => "3",
-        "was_seen" => false,
-        "label_ids" => $labelIds // Use GUIDs for label_ids
+        "label" => implode(',', $labelIds) // Use comma-separated label IDs
     ];
 
     // Logging the data payload (optional)
     if (WP_DEBUG_LOG) {
-        error_log('Payload to Pipedrive: ' . print_r($lead_data, true));
+        error_log('Payload to Pipedrive: ' . print_r($deal_data, true));
     }
 
-    // Send a POST request to Pipedrive API
-    $url = 'https://api.pipedrive.com/v1/leads?api_token=' . $pipedrive_api_key;
+    // Send a POST request to Pipedrive API to create a deal
+    $url = 'https://api.pipedrive.com/v1/deals?api_token=' . $pipedrive_api_key;
 
     $headers = [
-        'Content-Type: application/json',
+        'Content-Type: application/x-www-form-urlencoded',
         'Accept: application/json',
     ];
 
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($lead_data));
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($deal_data));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
     $response = curl_exec($ch);
     $httpStatusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $response_data = json_decode($response, true);
 
     if ($httpStatusCode == 201) {
-        $response_data = json_decode($response, true);
-        $lead_id = $response_data['data']['id'];
-
-        // Add a note with the label names
-        $note_content = "Labels: " . implode(", ", $labelNames);
-        $note_data = [
-            "content" => $note_content,
-            "lead_id" => $lead_id
-        ];
-
-        $note_url = 'https://api.pipedrive.com/v1/notes?api_token=' . $pipedrive_api_key;
-
-        $ch = curl_init($note_url);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($note_data));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-        $note_response = curl_exec($ch);
-        $note_httpStatusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if (WP_DEBUG_LOG) {
-            error_log('Note response: ' . $note_response);
-            error_log('HTTP Status Code (Note): ' . $note_httpStatusCode);
-        }
+        $deal_id = $response_data['data']['id'];
     } else {
-        curl_close($ch);
+        if (WP_DEBUG_LOG) {
+            error_log('Failed to create deal. Response: ' . $response);
+            error_log('HTTP Status Code: ' . $httpStatusCode);
+        }
         return new WP_REST_Response(array(
             'success' => false,
-            'message' => 'Failed to create lead in Pipedrive.'
+            'message' => 'Failed to create deal in Pipedrive.'
         ), 400);
     }
 
@@ -305,7 +257,7 @@ function sants_handle_webhook($request) {
 
     // Compose confirmation email using HTML
     $body = "<html><body>";
-    $body .= "<h2>A new lead has been received and processed:</h2>";
+    $body .= "<h2>A new deal has been received and processed:</h2>";
     $body .= "<p><strong>Page URL:</strong> " . (isset($parameters['page_url']) ? $parameters['page_url'] : 'Not Provided') . "</p>";
     $body .= "<p><strong>Email:</strong> " . $email . "</p>";
     $body .= "<p><strong>First Name:</strong> " . $firstName . "</p>";
@@ -329,7 +281,7 @@ function sants_handle_webhook($request) {
 
     // Send confirmation email to the admin
     $to = 'bester.dries@gmail.com';
-    $subject = 'Lead Received and Processed';
+    $subject = 'Deal Received and Processed';
     wp_mail($to, $subject, $body, $headers);
 
     return new WP_REST_Response(array(
