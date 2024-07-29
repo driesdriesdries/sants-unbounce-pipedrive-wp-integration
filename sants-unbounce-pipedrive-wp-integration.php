@@ -94,13 +94,20 @@ function sants_handle_webhook($request) {
     // Extract fields from parameters
     $pageIdentifier = isset($parameters['page_identifier']) ? $parameters['page_identifier'] : 'Not Provided';
 
+    // Extract UTM parameters
+    $utm_source = isset($parameters['utm_source']) ? $parameters['utm_source'] : '';
+    $utm_medium = isset($parameters['utm_medium']) ? $parameters['utm_medium'] : '';
+    $utm_campaign = isset($parameters['utm_campaign']) ? $parameters['utm_campaign'] : '';
+    $utm_term = isset($parameters['utm_term']) ? $parameters['utm_term'] : '';
+    $utm_content = isset($parameters['utm_content']) ? $parameters['utm_content'] : '';
+
     // Logging (optional)
     if (WP_DEBUG_LOG) {
         error_log('Webhook received: ' . print_r($parameters, true));
     }
 
     // Extract data fields from the webhook
-    $email = !empty($parameters['email']) ? $email = $parameters['email'] : '';
+    $email = !empty($parameters['email']) ? $parameters['email'] : '';
     $firstName = !empty($parameters['first_name']) ? $parameters['first_name'] : '';
     $lastName = !empty($parameters['last_name']) ? $parameters['last_name'] : '';
     $highestQualification = isset($parameters['highest_qualification']) ? $parameters['highest_qualification'] : 'Not provided';
@@ -271,6 +278,11 @@ function sants_handle_webhook($request) {
     $body .= "<p><strong>Page UUID:</strong> " . (isset($parameters['page_uuid']) ? $parameters['page_uuid'] : 'Not Provided') . "</p>";
     $body .= "<p><strong>Date Submitted:</strong> " . (isset($parameters['date_submitted']) ? $parameters['date_submitted'] : 'Not Provided') . "</p>";
     $body .= "<p><strong>Time Submitted:</strong> " . (isset($parameters['time_submitted']) ? $parameters['time_submitted'] : 'Not Provided') . "</p>";
+    $body .= "<p><strong>UTM Source:</strong> " . $utm_source . "</p>";
+    $body .= "<p><strong>UTM Medium:</strong> " . $utm_medium . "</p>";
+    $body .= "<p><strong>UTM Campaign:</strong> " . $utm_campaign . "</p>";
+    $body .= "<p><strong>UTM Term:</strong> " . $utm_term . "</p>";
+    $body .= "<p><strong>UTM Content:</strong> " . $utm_content . "</p>";
     $body .= "<h3>Pipedrive Response:</h3><pre>" . $response . "</pre>";
     $body .= "<p><strong>HTTP Status Code:</strong> " . $httpStatusCode . "</p>";
     $body .= "<p><strong>Page Identifier:</strong> " . $pageIdentifier . "</p>";
