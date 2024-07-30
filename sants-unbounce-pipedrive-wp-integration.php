@@ -3,7 +3,7 @@
  * Plugin Name: SANTS Unbounce to Pipedrive Integration
  * Plugin URI: https://www.sants.co.za
  * Description: Handles webhooks from Unbounce for integration with Pipedrive and sends confirmation emails.
- * Version: 1.4
+ * Version: 1.5
  * Author: Andries Bester
  * Author URI: https://www.sants.co.za
  */
@@ -215,7 +215,16 @@ function sants_handle_webhook($request) {
         "org_id" => $organization_id,
         "person_id" => $person_id,
         "visible_to" => "3",
-        "label" => implode(',', $labelIds) // Use comma-separated label IDs
+        "pipeline_id" => 1, // Example value, replace as needed
+        "stage_id" => 1, // Example value, replace as needed
+        "status" => "open",
+        "label" => implode(',', $labelIds), // Use comma-separated label IDs
+        "c71800d2484ed6e8214bdc7d5c00bf79c335fabf" => $utm_term, // Custom field for utm_term
+        "dba81b1d445caae3005528e543a3ecbfcf971bbc" => $utm_content, // Custom field for utm_content
+        "6a0b555582597066072681113e1a079c51e1b175" => $utm_campaign, // Custom field for utm_campaign
+        "e6f600bfe786cd5b7f5b806dee74894a734cbee4" => $utm_medium, // Custom field for utm_medium
+        "2274f16b217a0e061e67cb48b13e7a566621e129" => $utm_source, // Custom field for utm_source
+        "value" => 12 // Example value, replace as needed
     ];
 
     // Logging the data payload (optional)
