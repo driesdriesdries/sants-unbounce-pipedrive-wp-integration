@@ -3,7 +3,7 @@
  * Plugin Name: SANTS Unbounce to Pipedrive Integration
  * Plugin URI: https://www.sants.co.za
  * Description: Handles webhooks from Unbounce for integration with Pipedrive and sends confirmation emails.
- * Version: 1.5
+ * Version: 1.8
  * Author: Andries Bester
  * Author URI: https://www.sants.co.za
  */
@@ -114,6 +114,9 @@ function sants_handle_webhook($request) {
     $callback = isset($parameters['callback']) ? $parameters['callback'] : 'Not provided';
     $productOfInterest = isset($parameters['product_of_interest']) ? $parameters['product_of_interest'] : 'Not provided';
 
+    // Invert the callback logic for opt_out
+    $opt_out = ($callback === 'Yes') ? 'No' : 'Yes';
+
     // First, find or create a person in Pipedrive
     $person_data = [
         "name" => $firstName . " " . $lastName,
@@ -163,51 +166,6 @@ function sants_handle_webhook($request) {
         }
     }
 
-    // Page Identifier to Label ID Mapping
-    $pageIdentifierToLabelId = [
-        'general_enquiry' => '40',
-        'website' => '39',
-        'diploma' => '41',
-        'bed_foundation' => '42',
-        'bed_intermediate' => '43',
-        'lasium' => '44',
-        'beurs' => '45',
-    ];
-
-    // Callback to Label ID Mapping
-    $callbackToLabelId = [
-        'Yes' => '79',
-        'No' => '80',
-    ];
-
-    // Highest Qualification to Label ID Mapping
-    $qualificationToLabelId = [
-        'High School' => '75',
-        'Bachelors Degree' => '76',
-        'Honors Degree' => '77',
-        'Masters Degree' => '78',
-    ];
-
-    // Collect Label IDs
-    $labelIds = [];
-
-    if (isset($pageIdentifierToLabelId[$pageIdentifier])) {
-        $labelIds[] = $pageIdentifierToLabelId[$pageIdentifier];
-    }
-    if (isset($callbackToLabelId[$callback])) {
-        $labelIds[] = $callbackToLabelId[$callback];
-    }
-    if (isset($qualificationToLabelId[$highestQualification])) {
-        $labelIds[] = $qualificationToLabelId[$highestQualification];
-    }
-
-    if (empty($labelIds)) {
-        return new WP_REST_Response(array(
-            'success' => false,
-            'message' => 'Invalid page identifier, callback, or highest qualification. Unable to find corresponding label IDs.'
-        ), 400);
-    }
-
     // Prepare Pipedrive request data for creating a deal
     $deal_data = [
         "title" => "Deal: " . $firstName . " " . $lastName,
@@ -218,12 +176,14 @@ function sants_handle_webhook($request) {
         "pipeline_id" => 1, // Example value, replace as needed
         "stage_id" => 1, // Example value, replace as needed
         "status" => "open",
-        "label" => implode(',', $labelIds), // Use comma-separated label IDs
         "c71800d2484ed6e8214bdc7d5c00bf79c335fabf" => $utm_term, // Custom field for utm_term
         "dba81b1d445caae3005528e543a3ecbfcf971bbc" => $utm_content, // Custom field for utm_content
         "6a0b555582597066072681113e1a079c51e1b175" => $utm_campaign, // Custom field for utm_campaign
         "e6f600bfe786cd5b7f5b806dee74894a734cbee4" => $utm_medium, // Custom field for utm_medium
         "2274f16b217a0e061e67cb48b13e7a566621e129" => $utm_source, // Custom field for utm_source
+        "372e54d22f61419120451e73f1a2843fc28a6d6e" => $productOfInterest, // Custom field for product
+        "75594a70ab372a005e86c75648345f2427683e84" => $opt_out, // Custom field for opt_out
+        "882d0ba8b79535e29cdd46baaca26d6bdac7770e" => $highestQualification, // Custom field for highest_qualification
         "value" => 12 // Example value, replace as needed
     ];
 
