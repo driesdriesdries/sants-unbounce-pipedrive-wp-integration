@@ -3,7 +3,7 @@
  * Plugin Name: SANTS Unbounce to Pipedrive Integration
  * Plugin URI: https://www.sants.co.za
  * Description: Handles webhooks from Unbounce for integration with Pipedrive and sends confirmation emails.
- * Version: 1.8
+ * Version: 1.9
  * Author: Andries Bester
  * Author URI: https://www.sants.co.za
  */
@@ -260,14 +260,14 @@ function sants_handle_webhook($request) {
     // Set content-type header for HTML email
     $headers = array('Content-Type: text/html; charset=UTF-8');
 
-    // Send confirmation email to the admin
-    $to = 'bester.dries@gmail.com';
-    $subject = 'Deal Received and Processed';
-    wp_mail($to, $subject, $body, $headers);
+    // Commented out email sending functionality
+    // $to = 'bester.dries@gmail.com';
+    // $subject = 'Deal Received and Processed';
+    // wp_mail($to, $subject, $body, $headers);
 
     return new WP_REST_Response(array(
         'success' => true,
-        'message' => 'Webhook received and processed, email sent, and data forwarded to Pipedrive.',
+        'message' => 'Webhook received and processed, email sending commented out, and data forwarded to Pipedrive.',
     ), 200);
 }
 
