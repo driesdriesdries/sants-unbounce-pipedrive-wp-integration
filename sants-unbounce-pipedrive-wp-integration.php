@@ -76,6 +76,7 @@ function sants_handle_webhook($request) {
 
     // Validate `owner_id`
     if ($owner_id <= 0) {
+        error_log('Invalid owner_id specified: ' . $owner_id);
         return new WP_REST_Response(array(
             'success' => false,
             'message' => 'Invalid owner_id specified. Please provide a valid positive number.'
@@ -91,6 +92,9 @@ function sants_handle_webhook($request) {
         $parameters = $request->get_body_params();
     }
 
+    // Log the entire request data
+    error_log('Webhook received: ' . print_r($parameters, true));
+
     // Extract Unbounce JSON payload
     if (isset($parameters['data_json'])) {
         $decoded_data = json_decode($parameters['data_json'], true);
@@ -99,6 +103,29 @@ function sants_handle_webhook($request) {
 
     // Extract fields from parameters
     $pageIdentifier = isset($parameters['page_identifier']) ? $parameters['page_identifier'] : 'Not Provided';
+    $email = !empty($parameters['email']) ? $parameters['email'] : null;
+    $firstName = !empty($parameters['first_name']) ? $parameters['first_name'] : null;
+    $lastName = !empty($parameters['last_name']) ? $parameters['last_name'] : null;
+    $highestQualification = isset($parameters['highest_qualification']) ? $parameters['highest_qualification'] : 'Not provided';
+    $callback = isset($parameters['callback']) ? $parameters['callback'] : 'Not provided';
+    $productOfInterest = isset($parameters['product_of_interest']) ? $parameters['product_of_interest'] : 'Not provided';
+
+    // Check for required fields
+    if (empty($email)) {
+        error_log('Email parameter is missing or empty.');
+        return new WP_REST_Response(array(
+            'success' => false,
+            'message' => 'Email is required.'
+        ), 400);
+    }
+
+    if (empty($firstName) || empty($lastName)) {
+        error_log('First Name or Last Name is missing.');
+        return new WP_REST_Response(array(
+            'success' => false,
+            'message' => 'First Name and Last Name are required.'
+        ), 400);
+    }
 
     // Extract UTM parameters
     $utm_source = isset($parameters['utm_source']) ? $parameters['utm_source'] : '';
@@ -106,6 +133,10 @@ function sants_handle_webhook($request) {
     $utm_campaign = isset($parameters['utm_campaign']) ? $parameters['utm_campaign'] : '';
     $utm_term = isset($parameters['utm_term']) ? $parameters['utm_term'] : '';
     $utm_content = isset($parameters['utm_content']) ? $parameters['utm_content'] : '';
+
+    // Determine opt_out value based on callback
+    $opt_out = ($callback === 'Yes') ? 'No' : 'Yes';
+    error_log('Opt-out value being sent: ' . $opt_out);
 
     // Start timing for searching person
     $start_time = microtime(true);
@@ -160,6 +191,7 @@ function sants_handle_webhook($request) {
         if ($person_result['success']) {
             $person_id = $person_result['data']['id'];
         } else {
+            error_log('Failed to create or find a person in Pipedrive. Response: ' . print_r($person_result, true));
             return new WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Unable to create or find a person in Pipedrive.'
@@ -215,19 +247,20 @@ function sants_handle_webhook($request) {
     $execution_time = $end_time - $start_time;
     $timing_info .= 'Create deal execution time: ' . $execution_time . ' seconds<br>';
 
-    // End timing for total execution
-    $total_end_time = microtime(true);
-    $total_execution_time = $total_end_time - $total_start_time;
-    $timing_info .= 'Total webhook handling time: ' . $total_execution_time . ' seconds<br>';
-
     if ($httpStatusCode == 201) {
         $deal_id = $response_data['data']['id'];
     } else {
+        error_log('Failed to create deal in Pipedrive. Response: ' . print_r($response_data, true));
         return new WP_REST_Response(array(
             'success' => false,
             'message' => 'Failed to create deal in Pipedrive.'
         ), 400);
     }
+
+    // End timing for total execution
+    $total_end_time = microtime(true);
+    $total_execution_time = $total_end_time - $total_start_time;
+    $timing_info .= 'Total webhook handling time: ' . $total_execution_time . ' seconds<br>';
 
     // Convert callback value to a more readable format
     $callback_readable = $callback === 'Yes' ? 'Requested' : 'Not Requested';
@@ -265,7 +298,13 @@ function sants_handle_webhook($request) {
     // Send the email with the timing information
     $to = 'bester.dries@gmail.com'; // Replace with your desired email address
     $subject = 'Webhook Timing Information and Deal Processing Details';
-    wp_mail($to, $subject, $body, $headers);
+    $sent = wp_mail($to, $subject, $body, $headers);
+
+    if ($sent) {
+        error_log('Email sent successfully.');
+    } else {
+        error_log('Failed to send email.');
+    }
 
     return new WP_REST_Response(array(
         'success' => true,
