@@ -3,7 +3,7 @@
  * Plugin Name: SANTS Unbounce to Pipedrive Integration
  * Plugin URI: https://www.sants.co.za
  * Description: Handles webhooks from Unbounce for integration with Pipedrive and sends confirmation emails.
- * Version: 1.9
+ * Version: 2.0
  * Author: Andries Bester
  * Author URI: https://www.sants.co.za
  */
