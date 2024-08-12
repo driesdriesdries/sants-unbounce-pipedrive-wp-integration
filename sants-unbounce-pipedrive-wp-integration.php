@@ -63,6 +63,12 @@ add_action('rest_api_init', function () {
 });
 
 function sants_handle_webhook($request) {
+    // Start timing for total execution
+    $total_start_time = microtime(true);
+
+    // Collect timing info
+    $timing_info = "";
+
     // Retrieve Pipedrive credentials and settings from options
     $pipedrive_api_key = get_option('pipedrive_api_key');
     $owner_id = (int)get_option('owner_id');
@@ -101,21 +107,8 @@ function sants_handle_webhook($request) {
     $utm_term = isset($parameters['utm_term']) ? $parameters['utm_term'] : '';
     $utm_content = isset($parameters['utm_content']) ? $parameters['utm_content'] : '';
 
-    // Logging (optional)
-    if (WP_DEBUG_LOG) {
-        error_log('Webhook received: ' . print_r($parameters, true));
-    }
-
-    // Extract data fields from the webhook
-    $email = !empty($parameters['email']) ? $parameters['email'] : '';
-    $firstName = !empty($parameters['first_name']) ? $parameters['first_name'] : '';
-    $lastName = !empty($parameters['last_name']) ? $parameters['last_name'] : '';
-    $highestQualification = isset($parameters['highest_qualification']) ? $parameters['highest_qualification'] : 'Not provided';
-    $callback = isset($parameters['callback']) ? $parameters['callback'] : 'Not provided';
-    $productOfInterest = isset($parameters['product_of_interest']) ? $parameters['product_of_interest'] : 'Not provided';
-
-    // Invert the callback logic for opt_out
-    $opt_out = ($callback === 'Yes') ? 'No' : 'Yes';
+    // Start timing for searching person
+    $start_time = microtime(true);
 
     // First, find or create a person in Pipedrive
     $person_data = [
@@ -128,10 +121,18 @@ function sants_handle_webhook($request) {
     $search_response = file_get_contents($search_url);
     $search_result = json_decode($search_response, true);
 
+    // End timing for searching person
+    $end_time = microtime(true);
+    $execution_time = $end_time - $start_time;
+    $timing_info .= 'Search for person execution time: ' . $execution_time . ' seconds<br>';
+
     $person_id = null;
     if ($search_result['success'] && !empty($search_result['data']['items'])) {
         $person_id = $search_result['data']['items'][0]['item']['id'];
     } else {
+        // Start timing for creating a person
+        $start_time = microtime(true);
+
         // Create a new person if not found
         $person_url = 'https://api.pipedrive.com/v1/persons?api_token=' . $pipedrive_api_key;
 
@@ -150,10 +151,10 @@ function sants_handle_webhook($request) {
         $person_httpStatusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if (WP_DEBUG_LOG) {
-            error_log('Person creation response: ' . $person_response);
-            error_log('HTTP Status Code (Person): ' . $person_httpStatusCode);
-        }
+        // End timing for creating a person
+        $end_time = microtime(true);
+        $execution_time = $end_time - $start_time;
+        $timing_info .= 'Create person execution time: ' . $execution_time . ' seconds<br>';
 
         $person_result = json_decode($person_response, true);
         if ($person_result['success']) {
@@ -165,6 +166,9 @@ function sants_handle_webhook($request) {
             ), 400);
         }
     }
+
+    // Start timing for creating a deal
+    $start_time = microtime(true);
 
     // Prepare Pipedrive request data for creating a deal
     $deal_data = [
@@ -187,11 +191,6 @@ function sants_handle_webhook($request) {
         "value" => 12 // Example value, replace as needed
     ];
 
-    // Logging the data payload (optional)
-    if (WP_DEBUG_LOG) {
-        error_log('Payload to Pipedrive: ' . print_r($deal_data, true));
-    }
-
     // Send a POST request to Pipedrive API to create a deal
     $url = 'https://api.pipedrive.com/v1/deals?api_token=' . $pipedrive_api_key;
 
@@ -209,23 +208,25 @@ function sants_handle_webhook($request) {
     $response = curl_exec($ch);
     $httpStatusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $response_data = json_decode($response, true);
+    curl_close($ch);
+
+    // End timing for creating a deal
+    $end_time = microtime(true);
+    $execution_time = $end_time - $start_time;
+    $timing_info .= 'Create deal execution time: ' . $execution_time . ' seconds<br>';
+
+    // End timing for total execution
+    $total_end_time = microtime(true);
+    $total_execution_time = $total_end_time - $total_start_time;
+    $timing_info .= 'Total webhook handling time: ' . $total_execution_time . ' seconds<br>';
 
     if ($httpStatusCode == 201) {
         $deal_id = $response_data['data']['id'];
     } else {
-        if (WP_DEBUG_LOG) {
-            error_log('Failed to create deal. Response: ' . $response);
-            error_log('HTTP Status Code: ' . $httpStatusCode);
-        }
         return new WP_REST_Response(array(
             'success' => false,
             'message' => 'Failed to create deal in Pipedrive.'
         ), 400);
-    }
-
-    if (WP_DEBUG_LOG) {
-        error_log('Pipedrive response: ' . $response);
-        error_log('HTTP Status Code: ' . $httpStatusCode);
     }
 
     // Convert callback value to a more readable format
@@ -255,19 +256,20 @@ function sants_handle_webhook($request) {
     $body .= "<h3>Pipedrive Response:</h3><pre>" . $response . "</pre>";
     $body .= "<p><strong>HTTP Status Code:</strong> " . $httpStatusCode . "</p>";
     $body .= "<p><strong>Page Identifier:</strong> " . $pageIdentifier . "</p>";
+    $body .= "<h3>Timing Information:</h3><p>" . $timing_info . "</p>";
     $body .= "</body></html>";
 
     // Set content-type header for HTML email
     $headers = array('Content-Type: text/html; charset=UTF-8');
 
-    // Commented out email sending functionality
-    // $to = 'bester.dries@gmail.com';
-    // $subject = 'Deal Received and Processed';
-    // wp_mail($to, $subject, $body, $headers);
+    // Send the email with the timing information
+    $to = 'bester.dries@gmail.com'; // Replace with your desired email address
+    $subject = 'Webhook Timing Information and Deal Processing Details';
+    wp_mail($to, $subject, $body, $headers);
 
     return new WP_REST_Response(array(
         'success' => true,
-        'message' => 'Webhook received and processed, email sending commented out, and data forwarded to Pipedrive.',
+        'message' => 'Webhook received and processed, timing information sent via email.',
     ), 200);
 }
 
