@@ -265,46 +265,46 @@ function sants_handle_webhook($request) {
     // Convert callback value to a more readable format
     $callback_readable = $callback === 'Yes' ? 'Requested' : 'Not Requested';
 
-    // Compose confirmation email using HTML
-    $body = "<html><body>";
-    $body .= "<h2>A new deal has been received and processed:</h2>";
-    $body .= "<p><strong>Page URL:</strong> " . (isset($parameters['page_url']) ? $parameters['page_url'] : 'Not Provided') . "</p>";
-    $body .= "<p><strong>Email:</strong> " . $email . "</p>";
-    $body .= "<p><strong>First Name:</strong> " . $firstName . "</p>";
-    $body .= "<p><strong>Last Name:</strong> " . $lastName . "</p>";
-    $body .= "<p><strong>Highest Qualification:</strong> " . $highestQualification . "</p>";
-    $body .= "<p><strong>Callback Request:</strong> " . $callback_readable . "</p>";
-    $body .= "<p><strong>Product of Interest:</strong> " . $productOfInterest . "</p>";
-    $body .= "<p><strong>Variant:</strong> " . (isset($parameters['variant']) ? $parameters['variant'] : 'Not Provided') . "</p>";
-    $body .= "<p><strong>IP Address:</strong> " . (isset($parameters['ip_address']) ? $parameters['ip_address'] : 'Not Provided') . "</p>";
-    $body .= "<p><strong>Page Name:</strong> " . (isset($parameters['page_name']) ? $parameters['page_name'] : 'Not Provided') . "</p>";
-    $body .= "<p><strong>Page UUID:</strong> " . (isset($parameters['page_uuid']) ? $parameters['page_uuid'] : 'Not Provided') . "</p>";
-    $body .= "<p><strong>Date Submitted:</strong> " . (isset($parameters['date_submitted']) ? $parameters['date_submitted'] : 'Not Provided') . "</p>";
-    $body .= "<p><strong>Time Submitted:</strong> " . (isset($parameters['time_submitted']) ? $parameters['time_submitted'] : 'Not Provided') . "</p>";
-    $body .= "<p><strong>UTM Source:</strong> " . $utm_source . "</p>";
-    $body .= "<p><strong>UTM Medium:</strong> " . $utm_medium . "</p>";
-    $body .= "<p><strong>UTM Campaign:</strong> " . $utm_campaign . "</p>";
-    $body .= "<p><strong>UTM Term:</strong> " . $utm_term . "</p>";
-    $body .= "<p><strong>UTM Content:</strong> " . $utm_content . "</p>";
-    $body .= "<h3>Pipedrive Response:</h3><pre>" . $response . "</pre>";
-    $body .= "<p><strong>HTTP Status Code:</strong> " . $httpStatusCode . "</p>";
-    $body .= "<p><strong>Page Identifier:</strong> " . $pageIdentifier . "</p>";
-    $body .= "<h3>Timing Information:</h3><p>" . $timing_info . "</p>";
-    $body .= "</body></html>";
+    // // Compose confirmation email using HTML
+    // $body = "<html><body>";
+    // $body .= "<h2>A new deal has been received and processed:</h2>";
+    // $body .= "<p><strong>Page URL:</strong> " . (isset($parameters['page_url']) ? $parameters['page_url'] : 'Not Provided') . "</p>";
+    // $body .= "<p><strong>Email:</strong> " . $email . "</p>";
+    // $body .= "<p><strong>First Name:</strong> " . $firstName . "</p>";
+    // $body .= "<p><strong>Last Name:</strong> " . $lastName . "</p>";
+    // $body .= "<p><strong>Highest Qualification:</strong> " . $highestQualification . "</p>";
+    // $body .= "<p><strong>Callback Request:</strong> " . $callback_readable . "</p>";
+    // $body .= "<p><strong>Product of Interest:</strong> " . $productOfInterest . "</p>";
+    // $body .= "<p><strong>Variant:</strong> " . (isset($parameters['variant']) ? $parameters['variant'] : 'Not Provided') . "</p>";
+    // $body .= "<p><strong>IP Address:</strong> " . (isset($parameters['ip_address']) ? $parameters['ip_address'] : 'Not Provided') . "</p>";
+    // $body .= "<p><strong>Page Name:</strong> " . (isset($parameters['page_name']) ? $parameters['page_name'] : 'Not Provided') . "</p>";
+    // $body .= "<p><strong>Page UUID:</strong> " . (isset($parameters['page_uuid']) ? $parameters['page_uuid'] : 'Not Provided') . "</p>";
+    // $body .= "<p><strong>Date Submitted:</strong> " . (isset($parameters['date_submitted']) ? $parameters['date_submitted'] : 'Not Provided') . "</p>";
+    // $body .= "<p><strong>Time Submitted:</strong> " . (isset($parameters['time_submitted']) ? $parameters['time_submitted'] : 'Not Provided') . "</p>";
+    // $body .= "<p><strong>UTM Source:</strong> " . $utm_source . "</p>";
+    // $body .= "<p><strong>UTM Medium:</strong> " . $utm_medium . "</p>";
+    // $body .= "<p><strong>UTM Campaign:</strong> " . $utm_campaign . "</p>";
+    // $body .= "<p><strong>UTM Term:</strong> " . $utm_term . "</p>";
+    // $body .= "<p><strong>UTM Content:</strong> " . $utm_content . "</p>";
+    // $body .= "<h3>Pipedrive Response:</h3><pre>" . $response . "</pre>";
+    // $body .= "<p><strong>HTTP Status Code:</strong> " . $httpStatusCode . "</p>";
+    // $body .= "<p><strong>Page Identifier:</strong> " . $pageIdentifier . "</p>";
+    // $body .= "<h3>Timing Information:</h3><p>" . $timing_info . "</p>";
+    // $body .= "</body></html>";
 
-    // Set content-type header for HTML email
-    $headers = array('Content-Type: text/html; charset=UTF-8');
+    // // Set content-type header for HTML email
+    // $headers = array('Content-Type: text/html; charset=UTF-8');
 
-    // Send the email with the timing information
-    $to = 'bester.dries@gmail.com'; // Replace with your desired email address
-    $subject = 'Webhook Timing Information and Deal Processing Details';
-    $sent = wp_mail($to, $subject, $body, $headers);
+    // // Send the email with the timing information
+    // $to = 'bester.dries@gmail.com'; // Replace with your desired email address
+    // $subject = 'Webhook Timing Information and Deal Processing Details';
+    // $sent = wp_mail($to, $subject, $body, $headers);
 
-    if ($sent) {
-        error_log('Email sent successfully.');
-    } else {
-        error_log('Failed to send email.');
-    }
+    // if ($sent) {
+    //     error_log('Email sent successfully.');
+    // } else {
+    //     error_log('Failed to send email.');
+    // }
 
     return new WP_REST_Response(array(
         'success' => true,
